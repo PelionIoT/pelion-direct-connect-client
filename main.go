@@ -17,8 +17,8 @@ var apiKey string
 
 func main() {
 	flag.StringVar(&listenURI, "listen-uri", "0.0.0.0:8181", "Local TCP server address")
-	flag.StringVar(&cloudURI, "cloud-uri", "", "Cloud URI that edge-proxy service")
-	flag.StringVar(&apiKey, "api-key", "", "API Key that needs to connect to edge-proxy service")
+	flag.StringVar(&cloudURI, "cloud-uri", "", "Cloud URI that edge tunneling service is running on")
+	flag.StringVar(&apiKey, "api-key", "", "API Key that needs to connect to edge tunneling service")
 	flag.Parse()
 
 	if cloudURI == "" {
@@ -66,7 +66,7 @@ func main() {
 			})
 
 			if err != nil {
-				fmt.Printf("Error dial into edge-proxy service: %s\n, cloudURI - %s\n", err.Error(), cloudURI)
+				fmt.Printf("Error dial into edge tunneling service: %s\n, cloudURI - %s\n", err.Error(), cloudURI)
 
 				return
 			}
@@ -88,6 +88,8 @@ func main() {
 
 						break
 					}
+
+					fmt.Printf("write %d bytes of data to websocket connection\n", length)
 				}
 
 				cancel()
@@ -102,12 +104,14 @@ func main() {
 						break
 					}
 
-					_, err = tcpConn.Write(data)
+					length, err := tcpConn.Write(data)
 					if err != nil {
 						fmt.Printf("failed to write bytes to tcp connection: %s\n", err.Error())
 
 						break
 					}
+
+					fmt.Printf("write %d bytes of data back to local tcp connection\n", length)
 				}
 
 				cancel()
@@ -119,4 +123,3 @@ func main() {
 
 	<-ctx.Done()
 }
-
