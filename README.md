@@ -5,7 +5,7 @@ pelion-direct-connect-client serves as a local tcp server that accepts local tcp
 
 * Deploy container to a node
 
-* Install Go1.12. See the [instructions](https://golang.org/doc/install) here and build the client by running:
+* Install Go1.15. See the [instructions](https://golang.org/doc/install) here and build the client by running:
 > `$ go build`
 
 * Launch pelion-direct-connect-client locally by providing parameters - `listen-uri`, `cloud-uri` and `api-key`
