@@ -1,0 +1,142 @@
+swagger: '2.0'
+info:
+  title: Edge Proxy Websocket APIs
+  description: Websocket API to communicate with gateway services
+  version: v3
+consumes:
+  - application/json
+tags:
+  - name: Edge Proxy
+paths:
+  /v3/devices/{id}/services/{address}/connection:
+    get:
+      operationId: communicateWithGatewayBasedServices
+      summary: Establish a tunnel connection to connected devices.
+      description: |
+        This WebSocket-based API for clients establishes connections to services on connected gateways.
+        <br>
+        Establish WebSocket connections to the edge-proxy service. After you establish a Websocket connection, the Edge proxy sends data between cloud- and gateway-based services.
+        <br>
+        All communication is byte-based.
+      tags:
+      - Edge Proxy
+      parameters:
+      - name: Connection
+        in: header
+        type: string
+        required: true
+        description: The websocket connection header. Must be 'Upgrade'.
+        default: Upgrade
+      - name: Upgrade
+        in: header
+        type: string
+        required: true
+        description: The protocol upgrade header. Must be 'websocket'.
+        default: websocket
+      - name: Origin
+        in: header
+        type: string
+        required: false
+        description: Originating host of the request.
+      - name: Sec-WebSocket-Version
+        in: header
+        type: integer
+        required: true
+        description: WebSocket version of the protocol. Must be 13.
+        default: 13
+      - name: Sec-WebSocket-Key
+        in: header
+        type: string
+        format: byte
+        required: true
+        description: |-
+          The value of this header field must be a nonce consisting of a randomly selected 16-byte value that has been base64-encoded (see this section from RFC6455 - https://tools.ietf.org/html/rfc6455#section-11.3.1).
+          The nonce must be selected randomly for each connection. An example is "dGhlIHNhbXBsZSBub25jZQ==".
+      - name: id
+        in: path
+        type: string
+        pattern: '[0-9a-fA-F]{32}'
+        required: true
+        description: The Device ID.
+      - name: address
+        in: path
+        type: string
+        required: true
+        description: |-
+          The address of the TCP service listening on a specific port on the gateway. If a TCP service is listening on localhost with port 5000 and is ready to accept incoming traffic, 
+          the value of this parameter should be `localhost:5000`.
+      responses:
+        '101':
+          description: Connection established
+          headers:
+            Upgrade:
+              description: This is 'websocket' in accordance with the WebSocket specification.
+              type: string
+        '400':
+          description: Bad request.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '401':
+          description: Not authenticated.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '403':
+          description: Access denied.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '404':
+          description: Not found.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        '500':
+          description: Internal server error.
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+definitions:
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+        - object
+        - request_id
+        - type
+      properties:
+        object:
+          type: string
+          description: Entity name, always `error`.
+          enum:
+            - error
+        code:
+          type: integer
+          format: int32
+          description: HTTP response code
+          example: 400
+        type:
+          type: string
+          description: Error type used to categorise the error.
+          example: validation_error
+        message:
+          type: string
+          description: A human readable informative explanation
+          example: Validation error
+        request_id:
+          type: string
+          description: ID of the request.
+          example: 0161991d63150242ac12000600000000
+        fields:
+          type: array
+          description: Request fields which failed validation.
+          items:
+            type: object
+            required:
+              - name
+              - message
+            properties:
+              name:
+                type: string
+                description: Name of the field which caused the error.
+              message:
+                type: string
+                description: Message describing the error condition.
+
