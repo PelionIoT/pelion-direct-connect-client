@@ -14,11 +14,13 @@ import (
 var listenURI string
 var cloudURI string
 var apiKey string
+var applicationID string
 
 func main() {
 	flag.StringVar(&listenURI, "listen-uri", "0.0.0.0:8181", "Local TCP server address")
 	flag.StringVar(&cloudURI, "cloud-uri", "", "Cloud URI that edge tunneling service is running on")
 	flag.StringVar(&apiKey, "api-key", "", "API Key that needs to connect to edge tunneling service")
+	flag.StringVar(&applicationID, "application-id", "", "If JWT is used instead of api-key, application-id is needed")
 	flag.Parse()
 
 	if cloudURI == "" {
@@ -63,6 +65,7 @@ func main() {
 				"Authorization": []string{
 					"Bearer " + apiKey,
 				},
+				"X-Application-ID": []string{applicationID},
 			})
 
 			if err != nil {
