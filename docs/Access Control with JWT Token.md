@@ -31,9 +31,10 @@ curl -0 -v -X POST https://api.us-east-1.mbedcloud.com/v3/applications/{applicat
 - Access /v3/devices/{id}/services/{address}/connection with a header "X-Application-ID" corresponding to the same `{application-id}` (where the verification keys are created) and set `Authorization` header with value `Bearer {JWT}` . Using jwt as bearer token without this header will cause the client not be authenticated . `{id}` is the device id or gateway id and `{address}` is the `tunnel_ip:tunnel_port` format.
 
 ### JWT Claims to Access Edge-Proxy Tunnel
-Required claims
+#### Required claims
 - `exp`: JWT expiration date in number of seconds since Epoch format.
-Optional claims. Jwt token can specify one or all of the claims below to restrict access to the application
+##### Optional claims. 
+Jwt token can specify one or all of the claims below to restrict access to the application
 - `pelion.edge.tunnel.device_id`:  The only device id that could be used to open tunnel, if specified.
 - `pelion.edge.tunnel.ip`: The only IP that could be connected over tunnel, if specified.
 - `pelion.edge.tunnel.port`:  The only port that could be connected over tunnel, if specified.
