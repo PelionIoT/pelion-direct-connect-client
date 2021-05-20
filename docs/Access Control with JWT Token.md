@@ -4,7 +4,7 @@
 
 Clients using the api endpoint for tunnel `/v3/devices/{id}/services/{address}/connection` can use a jwt token to restrict access to a cloud application though the edge-proxy.
 
-Creation of the jwt is up to the client but a public cetificate that signed the jwt needs to be uploaded into the Pelion Device Management. An example flow is provided below.
+Creation of the jwt is up to the client but a public cetificate that signed the jwt needs to be uploaded into the Pelion Device Management. More information on Pelion Device Management JWT keys can be found [here](https://developer.pelion.com/docs/device-management/current/user-account/jwt-keys.html).
 
 ### Example Flow to Access Edge-Proxy Tunnel with JWT
 
