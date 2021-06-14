@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -15,12 +16,13 @@ var listenURI string
 var cloudURI string
 var apiKey string
 var applicationID string
-
+var sendPings bool
 func main() {
 	flag.StringVar(&listenURI, "listen-uri", "0.0.0.0:8181", "Local TCP server address")
 	flag.StringVar(&cloudURI, "cloud-uri", "", "Cloud URI that edge tunneling service is running on")
 	flag.StringVar(&apiKey, "api-key", "", "API Key or JWT Token that needs to connect to edge tunneling service")
 	flag.StringVar(&applicationID, "application-id", "", "If JWT is used instead of api-key, application-id is needed")
+	flag.BoolVar(&sendPings, "send-pings", true, "Keep the tunnel alive by pinging the other side of the tunnel")
 	flag.Parse()
 
 	if cloudURI == "" {
@@ -77,25 +79,49 @@ func main() {
 			ctx, cancel := context.WithCancel(ctx)
 
 			go func() {
-				for {
-					bytes := make([]byte, 4096)
-					length, err := tcpConn.Read(bytes)
-					if err != nil {
-						fmt.Printf("failed to read bytes from tcp connection: %s\n", err.Error())
-
-						break
+				chanLength := make(chan int)
+				bytes := make([]byte, 4096)
+				go func () {
+					for{
+						length, err := tcpConn.Read(bytes)
+						if err != nil {
+							fmt.Printf("failed to read bytes from tcp connection: %s\n", err.Error())
+							cancel()
+							return
+						}
+						chanLength <- length
 					}
+				}()
 
-					if err := wsConn.WriteMessage(websocket.BinaryMessage, bytes[:length]); err != nil {
-						fmt.Printf("failed to write binary message to websocket connection: %s\n", err.Error())
-
-						break
-					}
-
-					fmt.Printf("write %d bytes of data to websocket connection\n", length)
+				t := time.NewTicker(time.Duration(5 * time.Second))
+				if sendPings {
+					defer t.Stop()
+					fmt.Printf("Send pings enabled\n")
+				} else {
+					fmt.Printf("Send pings disabled\n")
+					t.Stop()
 				}
 
-				cancel()
+				for {
+					select {
+					case length := <- chanLength:
+							if err := wsConn.WriteMessage(websocket.BinaryMessage, bytes[:length]); err != nil {
+							fmt.Printf("failed to write binary message to websocket connection: %s\n", err.Error())
+							cancel()
+							return
+						}
+
+						fmt.Printf("write %d bytes of data to websocket connection\n", length)
+
+					case <-t.C:
+						if err := wsConn.WriteControl(websocket.PingMessage, []byte(""), time.Now().Add(time.Second)); err != nil {
+							fmt.Printf("Error writing ping %#v\n", err)
+							cancel()
+							return
+						}
+						fmt.Printf("Wrote Ping\n")
+					}
+				}
 			}()
 
 			go func() {
