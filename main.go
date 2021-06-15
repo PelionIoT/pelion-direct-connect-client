@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"net"
 	"net/http"
 	"os"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/sirupsen/logrus"
 )
 
 var listenURI string
@@ -25,14 +25,19 @@ func main() {
 	flag.BoolVar(&sendPings, "send-pings", true, "Keep the tunnel alive by pinging the other side of the tunnel")
 	flag.Parse()
 
+	customFormatter := new(logrus.TextFormatter)
+	customFormatter.FullTimestamp = true
+	logrus.SetFormatter(customFormatter)
+	logrus.SetLevel(logrus.DebugLevel)
+
 	if cloudURI == "" {
-		fmt.Printf("cloud-uri must be provided\n")
+		logrus.Errorf("cloud-uri must be provided\n")
 
 		os.Exit(1)
 	}
 
 	if apiKey == "" {
-		fmt.Printf("api-key must be provided\n")
+		logrus.Errorf("api-key must be provided\n")
 
 		os.Exit(1)
 	}
@@ -40,13 +45,13 @@ func main() {
 	// setup tcp server
 	listener, err := net.Listen("tcp", listenURI)
 	if err != nil {
-		fmt.Printf("Error listening: %s\n", err.Error())
+		logrus.Errorf("Error listening: %s\n", err.Error())
 
 		os.Exit(1)
 	}
 	defer listener.Close()
 
-	fmt.Printf("Listening on: %s\n", listenURI)
+	logrus.Infof("Listening on: %s\n", listenURI)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -56,12 +61,12 @@ func main() {
 		for {
 			tcpConn, err := listener.Accept()
 			if err != nil {
-				fmt.Printf("Error accepting: %s\n", err.Error())
+				logrus.Errorf("Error accepting: %s\n", err.Error())
 
 				return
 			}
 
-			fmt.Printf("Received message from %s to %s\n", tcpConn.RemoteAddr(), tcpConn.LocalAddr())
+			logrus.Debugf("Received message from %s to %s\n", tcpConn.RemoteAddr(), tcpConn.LocalAddr())
 
 			wsConn, _, err := websocket.DefaultDialer.Dial(cloudURI, http.Header{
 				"Authorization": []string{
@@ -71,7 +76,7 @@ func main() {
 			})
 
 			if err != nil {
-				fmt.Printf("Error dial into edge tunneling service: %s\n, cloudURI - %s\n", err.Error(), cloudURI)
+				logrus.Errorf("Error dial into edge tunneling service: %s\n, cloudURI - %s\n", err.Error(), cloudURI)
 
 				return
 			}
@@ -85,7 +90,7 @@ func main() {
 					for{
 						length, err := tcpConn.Read(bytes)
 						if err != nil {
-							fmt.Printf("failed to read bytes from tcp connection: %s\n", err.Error())
+							logrus.Errorf("failed to read bytes from tcp connection: %s\n", err.Error())
 							cancel()
 							return
 						}
@@ -96,9 +101,9 @@ func main() {
 				t := time.NewTicker(time.Duration(5 * time.Second))
 				if sendPings {
 					defer t.Stop()
-					fmt.Printf("Send pings enabled\n")
+					logrus.Infof("Send pings enabled\n")
 				} else {
-					fmt.Printf("Send pings disabled\n")
+					logrus.Infof("Send pings disabled\n")
 					t.Stop()
 				}
 
@@ -106,20 +111,20 @@ func main() {
 					select {
 					case length := <- chanLength:
 							if err := wsConn.WriteMessage(websocket.BinaryMessage, bytes[:length]); err != nil {
-							fmt.Printf("failed to write binary message to websocket connection: %s\n", err.Error())
+								logrus.Errorf("failed to write binary message to websocket connection: %s\n", err.Error())
 							cancel()
 							return
 						}
 
-						fmt.Printf("write %d bytes of data to websocket connection\n", length)
+						logrus.Debugf("write %d bytes of data to websocket connection\n", length)
 
 					case <-t.C:
 						if err := wsConn.WriteControl(websocket.PingMessage, []byte(""), time.Now().Add(time.Second)); err != nil {
-							fmt.Printf("Error writing ping %#v\n", err)
+							logrus.Errorf("Error writing ping %#v\n", err)
 							cancel()
 							return
 						}
-						fmt.Printf("Wrote Ping\n")
+						logrus.Debugf("Wrote Ping\n")
 					}
 				}
 			}()
@@ -128,19 +133,19 @@ func main() {
 				for {
 					_, data, err := wsConn.ReadMessage()
 					if err != nil {
-						fmt.Printf("failed to read binary message from websocket connection: %s\n", err.Error())
+						logrus.Errorf("failed to read binary message from websocket connection: %s\n", err.Error())
 
 						break
 					}
 
 					length, err := tcpConn.Write(data)
 					if err != nil {
-						fmt.Printf("failed to write bytes to tcp connection: %s\n", err.Error())
+						logrus.Errorf("failed to write bytes to tcp connection: %s\n", err.Error())
 
 						break
 					}
 
-					fmt.Printf("write %d bytes of data back to local tcp connection\n", length)
+					logrus.Debugf("write %d bytes of data back to local tcp connection\n", length)
 				}
 
 				cancel()
