@@ -84,17 +84,17 @@ func main() {
 			ctx, cancel := context.WithCancel(ctx)
 
 			go func() {
-				chanLength := make(chan int)
-				bytes := make([]byte, 4096)
+				chanBytes := make(chan []byte, 4096)
 				go func () {
 					for{
+						bytes := make([]byte, 4096)
 						length, err := tcpConn.Read(bytes)
 						if err != nil {
 							logrus.Errorf("failed to read bytes from tcp connection: %s\n", err.Error())
 							cancel()
 							return
 						}
-						chanLength <- length
+						chanBytes <- bytes[:length]
 					}
 				}()
 
@@ -109,8 +109,9 @@ func main() {
 
 				for {
 					select {
-					case length := <- chanLength:
-							if err := wsConn.WriteMessage(websocket.BinaryMessage, bytes[:length]); err != nil {
+					case bytes := <- chanBytes:
+						length := len(bytes)
+						if err := wsConn.WriteMessage(websocket.BinaryMessage, bytes[:length]); err != nil {
 								logrus.Errorf("failed to write binary message to websocket connection: %s\n", err.Error())
 							cancel()
 							return
