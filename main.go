@@ -86,7 +86,7 @@ func main() {
 			return
 		}
 
-		_, cancel := context.WithCancel(ctx)
+		ctx, cancel := context.WithCancel(ctx)
 
 		go func() {
 			chanBytes := make(chan []byte, 4096)
@@ -105,10 +105,12 @@ func main() {
 			}()
 
 			c := time.Tick(time.Duration(pingDuration) * time.Second)
-			logrus.Infof("pingDuration :%v c:%#v\n", pingDuration, c)
+			logrus.Infof("PingDuration :%v\n", pingDuration)
 
 			for {
 				select {
+				case <- ctx.Done():
+					return
 				case bytes := <- chanBytes:
 					length := len(bytes)
 					if err := wsConn.WriteMessage(websocket.BinaryMessage, bytes[:length]); err != nil {
@@ -118,16 +120,16 @@ func main() {
 						return
 					}
 
-					logrus.Debugf("write %d bytes of data to websocket connection\n", length)
+					logrus.Debugf("(Connection from %s to %s) write %d bytes of data to websocket connection\n", tcpConn.RemoteAddr(), tcpConn.LocalAddr(), length)
 
 				case <-c:
 					if err := wsConn.WriteControl(websocket.PingMessage, []byte(""), time.Now().Add(time.Second)); err != nil {
-						logrus.Errorf("(Connection from %s to %s) Error writing ping %s\n", tcpConn.RemoteAddr(), tcpConn.LocalAddr(), err)
+						logrus.Errorf("(Connection from %s to %s) error sending ping %s\n", tcpConn.RemoteAddr(), tcpConn.LocalAddr(), err)
 						cancel()
 
 						return
 					}
-					logrus.Debugf("Wrote Ping\n")
+					logrus.Debugf("(Connection from %s to %s) sent ping\n", tcpConn.RemoteAddr(), tcpConn.LocalAddr())
 				}
 			}
 		}()
@@ -148,7 +150,7 @@ func main() {
 					break
 				}
 
-				logrus.Debugf("write %d bytes of data back to local tcp connection\n", length)
+				logrus.Debugf("(Connection from %s to %s) write %d bytes of data back to local tcp connection\n", tcpConn.RemoteAddr(), tcpConn.LocalAddr(), length)
 			}
 
 			cancel()
